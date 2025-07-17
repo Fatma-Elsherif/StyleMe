@@ -2,58 +2,185 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>3D Avatar Drawing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Avatar from Measurements</title>
   <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f0f0f0;
+    }
+    canvas {
+      display: block;
+    }
+    .inputs {
+      padding: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      background: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin-top: 1rem;
+      border-radius: 10px;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.9rem;
+    }
+    input, select, button {
+      padding: 0.4rem;
+      font-size: 1rem;
+      margin-top: 0.2rem;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
+  <div class="inputs">
+    <label>Gender:
+      <select id="gender">
+        <option value="custom">Custom</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+      </select>
+    </label>
+    <label>Height (cm): <input id="height" type="number" value="170" /></label>
+    <label>Waist (cm): <input id="waist" type="number" value="30" /></label>
+    <label>Shoulders (cm): <input id="shoulders" type="number" value="40" /></label>
+    <label>Hips (cm): <input id="hips" type="number" value="35" /></label>
+    <button id="drawBtn">Draw Avatar</button>
+    <button id="exportImageBtn">Export Image</button>
+    <button id="exportModelBtn">Export 3D Model</button>
+  </div>
+
   <script type="module">
-    import * as THREE from 'https://cdn.skypack.dev/three@0.150.1';
-    import { OrbitControls } from 'https://cdn.skypack.dev/three@0.150.1/examples/jsm/controls/OrbitControls.js';
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+    import { GLTFExporter } from 'https://unpkg.com/three@0.160.0/examples/jsm/exporters/GLTFExporter.js';
 
-    // Scene, Camera, Renderer
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f0f0);
+    let scene, camera, renderer, controls, avatar;
 
-    const camera = new THREE.PerspectiveCamera(
-      75, window.innerWidth / window.innerHeight, 0.1, 1000
-    );
-    camera.position.z = 5;
+    function setPresetMeasurements(gender) {
+      const presets = {
+        male: { height: 175, waist: 34, shoulders: 45, hips: 37 },
+        female: { height: 165, waist: 28, shoulders: 38, hips: 40 }
+      };
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+      if (presets[gender]) {
+        document.getElementById('height').value = presets[gender].height;
+        document.getElementById('waist').value = presets[gender].waist;
+        document.getElementById('shoulders').value = presets[gender].shoulders;
+        document.getElementById('hips').value = presets[gender].hips;
+      }
+    }
 
-    // Orbit Controls
-    const controls = new OrbitControls(camera, renderer.domElement);
+    function initScene() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xf0f0f0);
 
-    // Sample geometry (placeholder for avatar)
-    const geometry = new THREE.BoxGeometry(1, 2, 0.5);
-    const material = new THREE.MeshStandardMaterial({ color: 0x2194ce });
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+      camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 100, 200);
 
-    // Lights
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(5, 5, 5).normalize();
-    scene.add(light);
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
 
-    // Responsive
+      controls = new OrbitControls(camera, renderer.domElement);
+
+      const light = new THREE.HemisphereLight(0xffffff, 0x444444);
+      light.position.set(0, 200, 0);
+      scene.add(light);
+    }
+
+    function drawAvatar() {
+      if (avatar) scene.remove(avatar);
+
+      const height = parseFloat(document.getElementById('height').value);
+      const waist = parseFloat(document.getElementById('waist').value);
+      const shoulders = parseFloat(document.getElementById('shoulders').value);
+      const hips = parseFloat(document.getElementById('hips').value);
+
+      avatar = new THREE.Group();
+      const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xffc9a9 });
+
+      const torsoHeight = height * 0.35;
+      const legHeight = height * 0.45;
+      const headHeight = height * 0.2;
+
+      const head = new THREE.Mesh(new THREE.SphereGeometry(shoulders * 0.3, 32, 32), skinMaterial);
+      head.position.y = torsoHeight + legHeight + headHeight / 2;
+
+      const torso = new THREE.Mesh(new THREE.CylinderGeometry(shoulders * 0.5, hips * 0.5, torsoHeight, 32), skinMaterial);
+      torso.position.y = legHeight + torsoHeight / 2;
+
+      const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(waist * 0.2, waist * 0.2, legHeight, 32), skinMaterial);
+      leftLeg.position.set(-waist * 0.2, legHeight / 2, 0);
+
+      const rightLeg = leftLeg.clone();
+      rightLeg.position.x = waist * 0.2;
+
+      const armLength = torsoHeight * 0.9;
+      const armRadius = shoulders * 0.1;
+      const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(armRadius, armRadius, armLength, 32), skinMaterial);
+      leftArm.position.set(-shoulders * 0.65, torso.position.y + 0.1, 0);
+
+      const rightArm = leftArm.clone();
+      rightArm.position.x = shoulders * 0.65;
+
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(shoulders * 0.15, shoulders * 0.15, headHeight * 0.2, 32), skinMaterial);
+      neck.position.y = torso.position.y + torsoHeight / 2 + headHeight * 0.1;
+
+      avatar.add(head, neck, torso, leftLeg, rightLeg, leftArm, rightArm);
+      scene.add(avatar);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    document.getElementById('drawBtn').addEventListener('click', drawAvatar);
+    document.getElementById('gender').addEventListener('change', (e) => setPresetMeasurements(e.target.value));
+
+    document.getElementById('exportImageBtn').addEventListener('click', () => {
+      const imgData = renderer.domElement.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = imgData;
+      a.download = "avatar.png";
+      a.click();
+    });
+
+    document.getElementById('exportModelBtn').addEventListener('click', () => {
+      const exporter = new GLTFExporter();
+      exporter.parse(avatar, (result) => {
+        const output = JSON.stringify(result);
+        const blob = new Blob([output], { type: 'application/json' });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "avatar.gltf";
+        a.click();
+      }, { binary: false });
+    });
+
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Animate
-    function animate() {
-      requestAnimationFrame(animate);
-      cube.rotation.y += 0.01;
-      controls.update();
-      renderer.render(scene, camera);
-    }
+    initScene();
     animate();
   </script>
 </body>
