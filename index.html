@@ -1,24 +1,60 @@
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-app.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-auth.js";
-  import { getDatabase, ref, set, child, get } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-database.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-analytics.js";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Avatar Drawing</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <script type="module">
+    import * as THREE from 'https://cdn.skypack.dev/three@0.150.1';
+    import { OrbitControls } from 'https://cdn.skypack.dev/three@0.150.1/examples/jsm/controls/OrbitControls.js';
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAOgYJc0Otme8R0T23yj1xq25WyiHPG-L4",
-    authDomain: "avatarwebar.firebaseapp.com",
-    databaseURL: "https://avatarwebar-default-rtdb.firebaseio.com",
-    projectId: "avatarwebar",
-    storageBucket: "avatarwebar.appspot.com",
-    messagingSenderId: "606443955344",
-    appId: "1:606443955344:web:b332ca0512c85a7d27e415",
-    measurementId: "G-PL5ZDLCMDN"
-  };
+    // Scene, Camera, Renderer
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getDatabase(app);
-  const analytics = getAnalytics(app);
+    const camera = new THREE.PerspectiveCamera(
+      75, window.innerWidth / window.innerHeight, 0.1, 1000
+    );
+    camera.position.z = 5;
 
-  // ... leave your window.addEventListener("DOMContentLoaded", () => { ... }) block unchanged
-</script>
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Orbit Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+
+    // Sample geometry (placeholder for avatar)
+    const geometry = new THREE.BoxGeometry(1, 2, 0.5);
+    const material = new THREE.MeshStandardMaterial({ color: 0x2194ce });
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
+
+    // Lights
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(5, 5, 5).normalize();
+    scene.add(light);
+
+    // Responsive
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Animate
+    function animate() {
+      requestAnimationFrame(animate);
+      cube.rotation.y += 0.01;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
