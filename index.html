@@ -1,211 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Avatar Creator with Firebase & Ready Player Me</title>
-  <script type="module">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-auth.js";
+  import { getDatabase, ref, set, child, get } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-database.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-analytics.js";
 
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOgYJc0Otme8R0T23yj1xq25WyiHPG-L4",
+    authDomain: "avatarwebar.firebaseapp.com",
+    databaseURL: "https://avatarwebar-default-rtdb.firebaseio.com",
+    projectId: "avatarwebar",
+    storageBucket: "avatarwebar.appspot.com",
+    messagingSenderId: "606443955344",
+    appId: "1:606443955344:web:b332ca0512c85a7d27e415",
+    measurementId: "G-PL5ZDLCMDN"
+  };
 
-  import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+  const analytics = getAnalytics(app);
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAOgYJc0Otme8R0T23yj1xq25WyiHPG-L4",
-  authDomain: "avatarwebar.firebaseapp.com",
-  databaseURL: "https://avatarwebar-default-rtdb.firebaseio.com",
-  projectId: "avatarwebar",
-  storageBucket: "avatarwebar.firebasestorage.app",
-  messagingSenderId: "606443955344",
-  appId: "1:606443955344:web:b332ca0512c85a7d27e415",
-  measurementId: "G-PL5ZDLCMDN"
-};
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
-    const storage = getStorage(app);
-
-    window.addEventListener("DOMContentLoaded", () => {
-      const loginBtn = document.getElementById("loginBtn");
-      const logoutBtn = document.getElementById("logoutBtn");
-      const userInfo = document.getElementById("userInfo");
-      const avatarIframe = document.getElementById("avatarIframe");
-      const saveAvatarBtn = document.getElementById("saveAvatarBtn");
-      const viewArBtn = document.getElementById("viewArBtn");
-      const arIframe = document.getElementById("arIframe");
-      const uploadForm = document.getElementById("uploadForm");
-      const imageUpload = document.getElementById("imageUpload");
-      const uploadedImg = document.getElementById("uploadedImg");
-      const measurementsForm = document.getElementById("measurementsForm");
-
-      let currentUser = null;
-      let avatarURL = "";
-      let echoShortCode = "";
-
-      loginBtn.onclick = async () => {
-        const provider = new GoogleAuthProvider();
-        try {
-          await signInWithPopup(auth, provider);
-        } catch (error) {
-          alert("Login failed: " + error.message);
-        }
-      };
-
-      logoutBtn.onclick = async () => {
-        try {
-          await signOut(auth);
-        } catch (error) {
-          alert("Logout failed: " + error.message);
-        }
-      };
-
-      onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          currentUser = user;
-          userInfo.innerHTML = `Logged in as <b>${user.displayName}</b>`;
-          loginBtn.classList.add("hidden");
-          logoutBtn.classList.remove("hidden");
-          avatarIframe.src = "https://readyplayer.me/avatar?frameApi";
-          avatarIframe.classList.remove("hidden");
-          saveAvatarBtn.classList.remove("hidden");
-          measurementsForm.classList.remove("hidden");
-          uploadForm.classList.remove("hidden");
-
-          try {
-            const snapshot = await get(child(ref(db), `users/${user.uid}`));
-            if (snapshot.exists()) {
-              const data = snapshot.val();
-              avatarURL = data.avatarURL || "";
-              echoShortCode = data.echoShortCode || "";
-              if (echoShortCode) {
-                viewArBtn.classList.remove("hidden");
-              }
-              if (data.photoURL) {
-                uploadedImg.src = data.photoURL;
-                uploadedImg.classList.remove("hidden");
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching user data:", error);
-          }
-        } else {
-          currentUser = null;
-          userInfo.innerHTML = "";
-          loginBtn.classList.remove("hidden");
-          logoutBtn.classList.add("hidden");
-          avatarIframe.classList.add("hidden");
-          saveAvatarBtn.classList.add("hidden");
-          viewArBtn.classList.add("hidden");
-          arIframe.classList.add("hidden");
-          measurementsForm.classList.add("hidden");
-          uploadForm.classList.add("hidden");
-          uploadedImg.classList.add("hidden");
-        }
-      });
-
-      window.addEventListener("message", (event) => {
-        if (event.origin !== "https://readyplayer.me") return;
-        if (event.data.source === 'readyplayerme' && event.data.eventName === 'v1.avatar.exported') {
-          avatarURL = event.data.data.url;
-          alert("Avatar created! Click 'Save Avatar' to save to Firebase.");
-        }
-      });
-
-      saveAvatarBtn.onclick = async () => {
-        if (!avatarURL) return alert("No avatar URL found!");
-        if (!currentUser) return alert("No user logged in.");
-
-        echoShortCode = "YOUR_ECHO3D_SHORT_CODE";
-
-        try {
-          await set(ref(db, `users/${currentUser.uid}`), {
-            name: currentUser.displayName,
-            email: currentUser.email,
-            avatarURL,
-            echoShortCode
-          });
-          alert("Avatar saved to Firebase!");
-          viewArBtn.classList.remove("hidden");
-        } catch (error) {
-          alert("Failed to save avatar: " + error.message);
-        }
-      };
-
-      viewArBtn.onclick = () => {
-        if (!echoShortCode) return alert("No AR model short code available.");
-        arIframe.src = `https://explorer.echo3d.com/${echoShortCode}?embedded=true`;
-        arIframe.classList.remove("hidden");
-      };
-
-      uploadForm.onsubmit = async (e) => {
-        e.preventDefault();
-        if (!currentUser) return alert("Please log in first.");
-        const file = imageUpload.files[0];
-        if (!file) return alert("Please select an image to upload.");
-
-        const filePath = `user_images/${currentUser.uid}/${file.name}`;
-        const fileRef = storageRef(storage, filePath);
-
-        try {
-          await uploadBytes(fileRef, file);
-          const downloadURL = await getDownloadURL(fileRef);
-          await set(ref(db, `users/${currentUser.uid}/photoURL`), downloadURL);
-          uploadedImg.src = downloadURL;
-          uploadedImg.classList.remove("hidden");
-          alert("Photo uploaded and saved to Firebase!");
-        } catch (error) {
-          alert("Upload failed: " + error.message);
-        }
-      };
-
-      measurementsForm.onsubmit = (e) => {
-        e.preventDefault();
-        const height = document.getElementById("heightInput").value;
-        const waist = document.getElementById("waistInput").value;
-        alert(`Measurements received: Height = ${height}cm, Waist = ${waist}cm (feature coming soon!)`);
-      };
-    });
-  </script>
-  <style>
-    body { font-family: sans-serif; text-align: center; }
-    iframe { width: 100%; height: 600px; border: none; }
-    .hidden { display: none; }
-    form { margin: 20px auto; max-width: 400px; text-align: left; }
-    input { display: block; width: 100%; margin-bottom: 10px; padding: 8px; }
-    #uploadedImg { max-width: 300px; margin: 10px auto; display: block; }
-  </style>
-</head>
-<body>
-  <h1>👤 Create Your Avatar</h1>
-  <button id="loginBtn">Login with Google</button>
-  <button id="logoutBtn" class="hidden">Logout</button>
-  <div id="userInfo"></div>
-
-  <iframe id="avatarIframe" class="hidden"></iframe>
-  <button id="saveAvatarBtn" class="hidden">Save Avatar</button>
-  <button id="viewArBtn" class="hidden">View in AR</button>
-  <iframe id="arIframe" class="hidden"></iframe>
-
-  <form id="measurementsForm" class="hidden">
-    <h2>📏 Enter Your Measurements</h2>
-    <input type="number" id="heightInput" placeholder="Height in cm" required />
-    <input type="number" id="waistInput" placeholder="Waist in cm" required />
-    <button type="submit">Submit Measurements</button>
-  </form>
-
-  <form id="uploadForm" class="hidden">
-    <h2>📸 Or Upload Your Photo</h2>
-    <input type="file" id="imageUpload" accept="image/*" />
-    <button type="submit">Upload Image</button>
-    <img id="uploadedImg" class="hidden" alt="Your uploaded photo will appear here" />
-  </form>
-</body>
-</html>
+  // ... leave your window.addEventListener("DOMContentLoaded", () => { ... }) block unchanged
+</script>
